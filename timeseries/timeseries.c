@@ -198,21 +198,6 @@ int TSInsertDoc(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     RedisModuleCallReply *confRep = NULL;
     const char *jsonErr;
     
-    /*
-    void cleanup(void) {
-        cJSON_Delete(data);
-        cJSON_Delete(conf);
-        RedisModule_FreeCallReply(confRep);
-    }
-    */
-    
-    /*
-    int exit_status(int status) {
-        cleanup();
-        return status;
-    }
-     */
-    
     if (argc != 3) {
         return RedisModule_WrongArity(ctx);
     }
@@ -222,54 +207,35 @@ int TSInsertDoc(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     
     // Time series entry name
     confRep = RedisModule_Call(ctx, "HGET", "cc", name, name);
-    //RMUTIL_ASSERT_NONULL(confRep, name, cleanup);
     if (confRep == NULL) {
-        //cleanup();
-        cJSON_Delete(data);
-        cJSON_Delete(conf);
-        RedisModule_FreeCallReply(confRep);
+        TS_CLEANUP(data, conf, confRep)
         return RedisModule_ReplyWithError(ctx,"ERR reply is NULL");
     } else if (RedisModule_CallReplyType(confRep) == REDISMODULE_REPLY_ERROR) {
         RedisModule_ReplyWithCallReply(ctx,confRep);
-        //cleanup();
-        cJSON_Delete(data);
-        cJSON_Delete(conf);
-        RedisModule_FreeCallReply(confRep);
+        TS_CLEANUP(data, conf, confRep)
         return REDISMODULE_ERR;
     } else if (RedisModule_CallReplyType(confRep) == REDISMODULE_REPLY_NULL) {
         char msg[1000] = "No such entry: ";
-        //cleanup();
-        cJSON_Delete(data);
-        cJSON_Delete(conf);
-        RedisModule_FreeCallReply(confRep);
+        TS_CLEANUP(data, conf, confRep)
         return RedisModule_ReplyWithError(ctx, strcat(msg, name));
     }
 
     
     // Time series entry conf previously stored for 'name'
     if (!(conf=cJSON_Parse(RedisModule_CallReplyStringPtr(confRep, NULL)))) {
-        cJSON_Delete(data);
-        cJSON_Delete(conf);
-        RedisModule_FreeCallReply(confRep);
+        TS_CLEANUP(data, conf, confRep)
         return RedisModule_ReplyWithError(ctx, "Something is wrong. Failed to parse ts conf");
-        //return exit_status(RedisModule_ReplyWithError(ctx, "Something is wrong. Failed to parse ts conf"));
     }
     
     // Time series entry data
     if (!(data=cJSON_Parse(RedisModule_StringPtrLen(argv[2], NULL)))) {
-        cJSON_Delete(data);
-        cJSON_Delete(conf);
-        RedisModule_FreeCallReply(confRep);
+        TS_CLEANUP(data, conf, confRep)
         return RedisModule_ReplyWithError(ctx, "Invalid json");
-        //return exit_status(RedisModule_ReplyWithError(ctx, "Invalid json"));
     }
     
     if ((jsonErr = ValidateTS(conf, data))) {
-        cJSON_Delete(data);
-        cJSON_Delete(conf);
-        RedisModule_FreeCallReply(confRep);
+        TS_CLEANUP(data, conf, confRep)
         return RedisModule_ReplyWithError(ctx, jsonErr);
-        //return exit_status(RedisModule_ReplyWithError(ctx, jsonErr));
     }
     
     // Create timestamp. Use a single timestamp for all entries, not to accidently use different entries in case
@@ -301,11 +267,8 @@ int TSInsertDoc(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
         ts_insert(ctx, strkey, value, cJSON_GetObjectString(data, "timestamp"));
     }
     
-    cJSON_Delete(data);
-    cJSON_Delete(conf);
-    RedisModule_FreeCallReply(confRep);
+    TS_CLEANUP(data, conf, confRep)
     return RedisModule_ReplyWithSimpleString(ctx, "OK");
-    //return exit_status(RedisModule_ReplyWithSimpleString(ctx, "OK"));
 }
 
 int TSGet(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {

@@ -90,6 +90,12 @@ typedef enum {
         return RedisModule_ReplyWithError(ctx, strcat(msg, entry)); \
     }
 
+#define TS_CLEANUP(data, conf, confRep) \
+    cJSON_Delete(data); \
+    cJSON_Delete(conf); \
+    RedisModule_FreeCallReply(confRep); \
+
+
 time_t interval_timestamp(const char *interval, const char *timestamp, const char *format);
 
 size_t idx_timestamp(time_t init_timestamp, size_t cur_timestamp, Interval interval);
